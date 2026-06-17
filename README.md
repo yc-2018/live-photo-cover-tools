@@ -196,7 +196,7 @@ python "D:\Desktop\sk\replace_live_photo_cover.py" `
   --replace
 ```
 
-# 从封面图和视频合成Live Photo / 实况照片
+# 从封面图和视频合成 Live Photo / 实况照片
 
 如果你手里有一张封面图和一个 MP4，也可以用下面这个脚本合成一个单文件 Live Photo / 实况照片 JPG。
 
@@ -220,6 +220,8 @@ D:\Desktop\sk\create_live_photo.py
 
 这个 `.jpg` 前半部分是封面图，末尾嵌入 MP4，并带有 Live Photo / 实况照片 XMP 元数据。
 
+注意：运行脚本时建议显式写 `python`，输出文件扩展名请用 `.jpg`，不要写成 `.png`。
+
 ## 合成脚本基础用法
 
 ```powershell
@@ -233,6 +235,15 @@ python "D:\Desktop\sk\create_live_photo.py" `
 
 ```text
 D:\Desktop\1\1_created_live_photo.jpg
+```
+
+如果你的封面文件叫 `封面.png`，可以这样运行：
+
+```powershell
+python "D:\Desktop\sk\create_live_photo.py" `
+  --cover "D:\Desktop\1\封面.png" `
+  --video "D:\Desktop\1\1.mp4" `
+  --output "D:\Desktop\1\实况图.jpg"
 ```
 
 ## 指定输出封面尺寸

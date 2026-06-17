@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Create a single-file Android/Google/Xiaomi style Live Photo / 实况照片 from a cover
-image and an MP4 video.
+Create a single-file Android/Google/Xiaomi style Live Photo / 实况照片 from a
+cover image and an MP4 video.
 
-The output is a JPEG file with Live Photo / 实况照片 XMP metadata. The JPEG still image
-is stored first, and the original MP4 bytes are appended at the end.
+The output is a JPEG file with Live Photo / 实况照片 XMP metadata. The JPEG still
+image is stored first, and the original MP4 bytes are appended at the end.
 """
 
 from __future__ import annotations
@@ -78,7 +78,6 @@ def probe_duration_us(video_path: Path) -> str:
     if seconds <= 0:
         return "0"
 
-    # Pick the middle of the clip as a reasonable presentation timestamp.
     return str(int(seconds * 1_000_000 / 2))
 
 
