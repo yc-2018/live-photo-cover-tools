@@ -220,21 +220,20 @@ D:\Desktop\sk\create_live_photo.py
 
 这个 `.jpg` 前半部分是封面图，末尾嵌入 MP4，并带有 Live Photo / 实况照片 XMP 元数据。
 
-注意：运行脚本时建议显式写 `python`，输出文件扩展名请用 `.jpg`，不要写成 `.png`。
+注意：运行脚本时建议显式写 `python`。`--output` 可以不填，默认输出到封面图同目录，文件名是 `封面名-实况图.jpg`。
 
 ## 合成脚本基础用法
 
 ```powershell
 python "D:\Desktop\sk\create_live_photo.py" `
   --cover "D:\Desktop\1\1.jpg" `
-  --video "D:\Desktop\1\1.mp4" `
-  --output "D:\Desktop\1\1_created_live_photo.jpg"
+  --video "D:\Desktop\1\1.mp4"
 ```
 
-本次已经用上面的命令测试生成：
+上面的命令会默认生成：
 
 ```text
-D:\Desktop\1\1_created_live_photo.jpg
+D:\Desktop\1\1-实况图.jpg
 ```
 
 如果你的封面文件叫 `封面.png`，可以这样运行：
@@ -242,9 +241,16 @@ D:\Desktop\1\1_created_live_photo.jpg
 ```powershell
 python "D:\Desktop\sk\create_live_photo.py" `
   --cover "D:\Desktop\1\封面.png" `
-  --video "D:\Desktop\1\1.mp4" `
-  --output "D:\Desktop\1\实况图.jpg"
+  --video "D:\Desktop\1\1.mp4"
 ```
+
+会默认生成：
+
+```text
+D:\Desktop\1\封面-实况图.jpg
+```
+
+也可以用 `--output` 自己指定输出文件名，扩展名建议写 `.jpg`，不要写成 `.png`。
 
 ## 指定输出封面尺寸
 

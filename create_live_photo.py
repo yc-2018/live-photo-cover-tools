@@ -204,13 +204,21 @@ def create_live_photo(
     print(f"PresentationTimestampUs：{timestamp}")
 
 
+def default_output_path(cover_path: Path) -> Path:
+    return cover_path.with_name(f"{cover_path.stem}-实况图.jpg")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="把一张封面图和一个 MP4 合成为单文件 Live Photo / 实况照片 JPG。"
     )
     parser.add_argument("--cover", required=True, type=Path, help="封面图片，支持 jpg/png/webp 等 Pillow 可读格式")
     parser.add_argument("--video", required=True, type=Path, help="MP4 视频文件")
-    parser.add_argument("--output", required=True, type=Path, help="输出 Live Photo / 实况照片 JPG")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="输出 Live Photo / 实况照片 JPG；不填则使用 封面名-实况图.jpg",
+    )
     parser.add_argument("--size", help="输出封面尺寸，例如 3072x4096；不填则使用封面原尺寸")
     parser.add_argument(
         "--fit",
@@ -228,10 +236,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    cover_path = args.cover.resolve()
+    output_path = args.output.resolve() if args.output else default_output_path(cover_path)
     create_live_photo(
-        args.cover.resolve(),
+        cover_path,
         args.video.resolve(),
-        args.output.resolve(),
+        output_path,
         size=parse_size(args.size),
         fit=args.fit,
         quality=args.quality,
