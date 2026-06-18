@@ -87,6 +87,29 @@
       letter-spacing: 0;
     }
 
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 22px 0 0;
+    }
+
+    .tab {
+      background: #fff;
+      color: var(--text);
+      border-color: var(--line);
+    }
+
+    .tab[aria-selected="true"] {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .tool-panel[hidden] {
+      display: none;
+    }
+
     .drop {
       position: relative;
       display: grid;
@@ -294,8 +317,13 @@
       <div class="badge">不上传文件</div>
     </header>
 
+    <div class="tabs" role="tablist" aria-label="工具模式">
+      <button id="createTab" class="tab" type="button" role="tab" aria-selected="true">合成实况照片</button>
+      <button id="replaceTab" class="tab" type="button" role="tab" aria-selected="false">实况照片换封面</button>
+    </div>
+
     <div class="layout">
-      <section>
+      <section id="createPanel" class="tool-panel" role="tabpanel" aria-labelledby="createTab">
         <h2>合成实况照片</h2>
 
         <div class="drop" data-drop>
@@ -356,6 +384,52 @@
         </div>
       </section>
 
+      <section id="replacePanel" class="tool-panel" role="tabpanel" aria-labelledby="replaceTab" hidden>
+        <h2>实况照片换封面</h2>
+
+        <div class="drop" data-drop>
+          <div class="drop-title">
+            <span>原实况照片</span>
+            <small>JPG</small>
+          </div>
+          <input id="sourceLiveInput" type="file" accept="image/jpeg,.jpg,.jpeg">
+          <small id="sourceLiveName">未选择</small>
+        </div>
+
+        <div class="drop" data-drop>
+          <div class="drop-title">
+            <span>新封面图</span>
+            <small>JPG / PNG / WebP</small>
+          </div>
+          <input id="newCoverInput" type="file" accept="image/*">
+          <small id="newCoverName">未选择</small>
+        </div>
+
+        <div class="settings">
+          <label>
+            输出文件名
+            <input id="replaceOutputName" type="text" placeholder="自动使用 原文件名-换封面.jpg">
+          </label>
+          <label>
+            JPG 质量
+            <input id="replaceQualityInput" type="number" min="1" max="100" value="95">
+          </label>
+          <label>
+            适配方式
+            <select id="replaceFitMode">
+              <option value="crop">裁切填满</option>
+              <option value="contain">完整显示</option>
+              <option value="stretch">拉伸</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="replaceButton" type="button">生成换封面实况照片</button>
+          <a id="replaceDownloadLink" class="download" href="#" download aria-disabled="true">下载 JPG</a>
+        </div>
+      </section>
+
       <section class="preview">
         <h2>预览与状态</h2>
         <div class="preview-box" id="previewBox">
@@ -374,22 +448,37 @@
   <script>
     const coverInput = document.getElementById("coverInput");
     const videoInput = document.getElementById("videoInput");
+    const sourceLiveInput = document.getElementById("sourceLiveInput");
+    const newCoverInput = document.getElementById("newCoverInput");
     const coverName = document.getElementById("coverName");
     const videoName = document.getElementById("videoName");
+    const sourceLiveName = document.getElementById("sourceLiveName");
+    const newCoverName = document.getElementById("newCoverName");
     const outputName = document.getElementById("outputName");
+    const replaceOutputName = document.getElementById("replaceOutputName");
     const qualityInput = document.getElementById("qualityInput");
+    const replaceQualityInput = document.getElementById("replaceQualityInput");
     const sizeMode = document.getElementById("sizeMode");
     const fitMode = document.getElementById("fitMode");
+    const replaceFitMode = document.getElementById("replaceFitMode");
     const widthInput = document.getElementById("widthInput");
     const heightInput = document.getElementById("heightInput");
     const buildButton = document.getElementById("buildButton");
+    const replaceButton = document.getElementById("replaceButton");
     const downloadLink = document.getElementById("downloadLink");
+    const replaceDownloadLink = document.getElementById("replaceDownloadLink");
     const previewBox = document.getElementById("previewBox");
     const statusBox = document.getElementById("statusBox");
     const metaBox = document.getElementById("metaBox");
+    const createTab = document.getElementById("createTab");
+    const replaceTab = document.getElementById("replaceTab");
+    const createPanel = document.getElementById("createPanel");
+    const replacePanel = document.getElementById("replacePanel");
 
     let coverImageUrl = "";
     let resultUrl = "";
+    let replaceCoverImageUrl = "";
+    let replaceResultUrl = "";
 
     function setStatus(message, isError = false) {
       statusBox.textContent = message;
@@ -411,6 +500,12 @@
       const cover = coverInput.files && coverInput.files[0];
       if (!cover) return "实况图.jpg";
       return `${baseName(cover.name)}-实况图.jpg`;
+    }
+
+    function defaultReplaceOutputName() {
+      const source = sourceLiveInput.files && sourceLiveInput.files[0];
+      if (!source) return "换封面-实况图.jpg";
+      return `${baseName(source.name)}-换封面.jpg`;
     }
 
     function normalizeOutputName(name) {
@@ -470,6 +565,64 @@
       return new TextEncoder().encode(header + xmp);
     }
 
+    function parseJpegSize(bytes) {
+      if (bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+        throw new Error("原实况照片不是 JPEG。");
+      }
+
+      let pos = 2;
+      while (pos < bytes.length - 8) {
+        if (bytes[pos] !== 0xff) {
+          pos += 1;
+          continue;
+        }
+        while (pos < bytes.length && bytes[pos] === 0xff) pos += 1;
+        const marker = bytes[pos];
+        pos += 1;
+        if (marker === 0xda) break;
+        if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7)) {
+          continue;
+        }
+        const length = (bytes[pos] << 8) + bytes[pos + 1];
+        if ([0xc0, 0xc1, 0xc2].includes(marker)) {
+          return {
+            width: (bytes[pos + 5] << 8) + bytes[pos + 6],
+            height: (bytes[pos + 3] << 8) + bytes[pos + 4]
+          };
+        }
+        pos += length;
+      }
+      throw new Error("没有读到原实况照片的尺寸。");
+    }
+
+    function parseMotionInfo(bytes) {
+      const headBytes = bytes.slice(0, Math.min(bytes.length, 200000));
+      const head = new TextDecoder("utf-8", { fatal: false }).decode(headBytes);
+      let match = head.match(/Item:Semantic="MotionPhoto"\s+Item:Length="(\d+)"/);
+      if (!match) {
+        match = head.match(/Item:Length="(\d+)"\s+Item:Padding="0"/);
+      }
+      if (!match) {
+        throw new Error("没有找到实况照片的视频长度元数据，可能不是支持的单文件实况照片。");
+      }
+      const videoLength = Number(match[1]);
+      if (!videoLength || videoLength >= bytes.length) {
+        throw new Error("读取到的视频长度异常。");
+      }
+      const videoStart = bytes.length - videoLength;
+      const videoHead = new TextDecoder("latin1").decode(bytes.slice(videoStart, videoStart + 64));
+      if (!videoHead.includes("ftyp")) {
+        throw new Error("原文件尾部不像 MP4 视频，无法安全换封面。");
+      }
+      const ts = head.match(/GCamera:MotionPhotoPresentationTimestampUs="([0-9-]+)"/);
+      return {
+        videoStart,
+        videoLength,
+        presentationUs: ts ? ts[1] : "0",
+        size: parseJpegSize(bytes)
+      };
+    }
+
     function blobToImage(blob) {
       return new Promise((resolve, reject) => {
         const url = URL.createObjectURL(blob);
@@ -494,16 +647,14 @@
       return { img, url };
     }
 
-    function drawCover(img) {
-      let targetWidth = img.naturalWidth;
-      let targetHeight = img.naturalHeight;
+    function drawImageToJpeg(img, options) {
+      let targetWidth = options.width || img.naturalWidth;
+      let targetHeight = options.height || img.naturalHeight;
+      const fit = options.fit || "crop";
+      const qualityValue = options.quality || 95;
 
-      if (sizeMode.value === "custom") {
-        targetWidth = Number(widthInput.value);
-        targetHeight = Number(heightInput.value);
-        if (!targetWidth || !targetHeight || targetWidth <= 0 || targetHeight <= 0) {
-          throw new Error("请填写有效的输出宽度和高度。");
-        }
+      if (!targetWidth || !targetHeight || targetWidth <= 0 || targetHeight <= 0) {
+        throw new Error("请填写有效的输出宽度和高度。");
       }
 
       const canvas = document.createElement("canvas");
@@ -516,9 +667,9 @@
       const sourceWidth = img.naturalWidth;
       const sourceHeight = img.naturalHeight;
 
-      if (sizeMode.value === "original" || fitMode.value === "stretch") {
+      if (fit === "stretch") {
         ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-      } else if (fitMode.value === "contain") {
+      } else if (fit === "contain") {
         const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
         const drawWidth = Math.round(sourceWidth * scale);
         const drawHeight = Math.round(sourceHeight * scale);
@@ -535,7 +686,7 @@
       }
 
       return new Promise((resolve, reject) => {
-        const quality = Math.max(1, Math.min(100, Number(qualityInput.value) || 95)) / 100;
+        const quality = Math.max(1, Math.min(100, Number(qualityValue) || 95)) / 100;
         canvas.toBlob((blob) => {
           if (!blob) {
             reject(new Error("封面 JPG 生成失败。"));
@@ -543,6 +694,26 @@
           }
           resolve(blob);
         }, "image/jpeg", quality);
+      });
+    }
+
+    function drawCover(img) {
+      let targetWidth = img.naturalWidth;
+      let targetHeight = img.naturalHeight;
+
+      if (sizeMode.value === "custom") {
+        targetWidth = Number(widthInput.value);
+        targetHeight = Number(heightInput.value);
+        if (!targetWidth || !targetHeight || targetWidth <= 0 || targetHeight <= 0) {
+          throw new Error("请填写有效的输出宽度和高度。");
+        }
+      }
+
+      return drawImageToJpeg(img, {
+        width: targetWidth,
+        height: targetHeight,
+        fit: sizeMode.value === "original" ? "stretch" : fitMode.value,
+        quality: Number(qualityInput.value) || 95
       });
     }
 
@@ -608,6 +779,72 @@
       }
     }
 
+    async function replaceLivePhotoCover() {
+      try {
+        const source = sourceLiveInput.files && sourceLiveInput.files[0];
+        const newCover = newCoverInput.files && newCoverInput.files[0];
+        if (!source) throw new Error("请选择原实况照片 JPG。");
+        if (!newCover) throw new Error("请选择新封面图。");
+
+        setStatus("正在解析原实况照片...");
+        replaceButton.disabled = true;
+        replaceDownloadLink.setAttribute("aria-disabled", "true");
+
+        const sourceBytes = new Uint8Array(await source.arrayBuffer());
+        const info = parseMotionInfo(sourceBytes);
+        const videoBytes = sourceBytes.slice(info.videoStart);
+
+        const { img, url } = await fileToImage(newCover);
+        const coverBlob = await drawImageToJpeg(img, {
+          width: info.size.width,
+          height: info.size.height,
+          fit: replaceFitMode.value,
+          quality: Number(replaceQualityInput.value) || 95
+        });
+        URL.revokeObjectURL(url);
+
+        const coverBytes = new Uint8Array(await coverBlob.arrayBuffer());
+        if (coverBytes[0] !== 0xff || coverBytes[1] !== 0xd8) {
+          throw new Error("新封面没有成功转换成 JPEG。");
+        }
+
+        const xmpSegment = jpegSegment(0xe1, makeXmp(videoBytes.length, info.presentationUs));
+        const totalLength = coverBytes.length + xmpSegment.length + videoBytes.length;
+        const outputBytes = new Uint8Array(totalLength);
+        let offset = 0;
+        outputBytes.set(coverBytes.slice(0, 2), offset);
+        offset += 2;
+        outputBytes.set(xmpSegment, offset);
+        offset += xmpSegment.length;
+        outputBytes.set(coverBytes.slice(2), offset);
+        offset += coverBytes.length - 2;
+        outputBytes.set(videoBytes, offset);
+
+        if (replaceResultUrl) URL.revokeObjectURL(replaceResultUrl);
+        const resultBlob = new Blob([outputBytes], { type: "image/jpeg" });
+        replaceResultUrl = URL.createObjectURL(resultBlob);
+
+        const fileName = normalizeOutputName(replaceOutputName.value || defaultReplaceOutputName());
+        replaceDownloadLink.href = replaceResultUrl;
+        replaceDownloadLink.download = fileName;
+        replaceDownloadLink.textContent = `下载 ${fileName}`;
+        replaceDownloadLink.setAttribute("aria-disabled", "false");
+
+        setStatus("换封面完成，点击下载 JPG。");
+        metaBox.innerHTML = `
+          <div><strong>输出文件：</strong>${fileName}</div>
+          <div><strong>原尺寸：</strong>${info.size.width}x${info.size.height}</div>
+          <div><strong>新封面 JPG：</strong>${bytesText(coverBytes.length)}</div>
+          <div><strong>保留视频：</strong>${bytesText(videoBytes.length)}</div>
+          <div><strong>总大小：</strong>${bytesText(outputBytes.length)}</div>
+        `;
+      } catch (error) {
+        setStatus(error.message || String(error), true);
+      } finally {
+        replaceButton.disabled = false;
+      }
+    }
+
     function updatePreview() {
       const cover = coverInput.files && coverInput.files[0];
       coverName.textContent = cover ? `${cover.name} (${bytesText(cover.size)})` : "未选择";
@@ -632,6 +869,36 @@
       videoName.textContent = video ? `${video.name} (${bytesText(video.size)})` : "未选择";
     }
 
+    function updateSourceLiveName() {
+      const source = sourceLiveInput.files && sourceLiveInput.files[0];
+      sourceLiveName.textContent = source ? `${source.name} (${bytesText(source.size)})` : "未选择";
+    }
+
+    function updateNewCoverPreview() {
+      const cover = newCoverInput.files && newCoverInput.files[0];
+      newCoverName.textContent = cover ? `${cover.name} (${bytesText(cover.size)})` : "未选择";
+      if (!cover) return;
+      if (replaceCoverImageUrl) URL.revokeObjectURL(replaceCoverImageUrl);
+      replaceCoverImageUrl = URL.createObjectURL(cover);
+      previewBox.innerHTML = "";
+      const img = document.createElement("img");
+      img.alt = "新封面预览";
+      img.src = replaceCoverImageUrl;
+      previewBox.appendChild(img);
+    }
+
+    function switchMode(mode) {
+      const replace = mode === "replace";
+      createTab.setAttribute("aria-selected", String(!replace));
+      replaceTab.setAttribute("aria-selected", String(replace));
+      createPanel.hidden = replace;
+      replacePanel.hidden = !replace;
+      downloadLink.setAttribute("aria-disabled", "true");
+      replaceDownloadLink.setAttribute("aria-disabled", "true");
+      metaBox.innerHTML = "";
+      setStatus(replace ? "选择原实况照片和新封面图。" : "等待选择文件。");
+    }
+
     sizeMode.addEventListener("change", () => {
       const custom = sizeMode.value === "custom";
       widthInput.disabled = !custom;
@@ -641,6 +908,11 @@
     coverInput.addEventListener("change", updatePreview);
     videoInput.addEventListener("change", updateVideoName);
     buildButton.addEventListener("click", buildLivePhoto);
+    sourceLiveInput.addEventListener("change", updateSourceLiveName);
+    newCoverInput.addEventListener("change", updateNewCoverPreview);
+    replaceButton.addEventListener("click", replaceLivePhotoCover);
+    createTab.addEventListener("click", () => switchMode("create"));
+    replaceTab.addEventListener("click", () => switchMode("replace"));
 
     for (const drop of document.querySelectorAll("[data-drop]")) {
       drop.addEventListener("dragover", (event) => {
