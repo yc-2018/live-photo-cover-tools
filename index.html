@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Live Photo / 实况照片工具</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #d8dee8;
+      --accent: #0f766e;
+      --accent-strong: #0b5f59;
+      --soft: #e8f4f2;
+      --danger: #b42318;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    main {
+      width: min(1040px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px 0 22px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .badge {
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+      gap: 18px;
+      margin-top: 22px;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .drop {
+      position: relative;
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      min-height: 116px;
+      border: 1px dashed #9aa7b7;
+      border-radius: 8px;
+      background: #fbfcfd;
+      transition: border-color .15s, background .15s;
+    }
+
+    .drop + .drop {
+      margin-top: 12px;
+    }
+
+    .drop.active {
+      border-color: var(--accent);
+      background: var(--soft);
+    }
+
+    .drop-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      font-weight: 700;
+    }
+
+    .drop small {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      min-height: 38px;
+      color: var(--text);
+    }
+
+    .settings {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      font-size: 14px;
+      color: #374151;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font: inherit;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button,
+    .download {
+      min-height: 42px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 9px 14px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    button {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    button:hover {
+      background: var(--accent-strong);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .55;
+    }
+
+    .download {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      border-color: var(--accent);
+      color: var(--accent-strong);
+    }
+
+    .download[aria-disabled="true"] {
+      display: none;
+    }
+
+    .preview {
+      display: grid;
+      gap: 14px;
+    }
+
+    .preview-box {
+      display: grid;
+      place-items: center;
+      min-height: 420px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background:
+        linear-gradient(45deg, #eef1f5 25%, transparent 25%),
+        linear-gradient(-45deg, #eef1f5 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #eef1f5 75%),
+        linear-gradient(-45deg, transparent 75%, #eef1f5 75%);
+      background-size: 22px 22px;
+      background-position: 0 0, 0 11px, 11px -11px, -11px 0;
+      overflow: hidden;
+    }
+
+    .preview-box img {
+      max-width: 100%;
+      max-height: 420px;
+      display: block;
+    }
+
+    .empty {
+      color: var(--muted);
+      text-align: center;
+      padding: 20px;
+    }
+
+    .status {
+      min-height: 44px;
+      border-radius: 8px;
+      padding: 11px 12px;
+      background: #f3f6fa;
+      color: #374151;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .status.error {
+      background: #fff1f0;
+      color: var(--danger);
+    }
+
+    .meta {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .meta strong {
+      color: var(--text);
+    }
+
+    footer {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 820px) {
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .layout,
+      .settings {
+        grid-template-columns: 1fr;
+      }
+
+      .preview-box {
+        min-height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Live Photo / 实况照片工具</h1>
+        <p>选择封面图和 MP4 视频，在浏览器本地合成单文件实况照片 JPG。</p>
+      </div>
+      <div class="badge">不上传文件</div>
+    </header>
+
+    <div class="layout">
+      <section>
+        <h2>合成实况照片</h2>
+
+        <div class="drop" data-drop>
+          <div class="drop-title">
+            <span>封面图</span>
+            <small>JPG / PNG / WebP</small>
+          </div>
+          <input id="coverInput" type="file" accept="image/*">
+          <small id="coverName">未选择</small>
+        </div>
+
+        <div class="drop" data-drop>
+          <div class="drop-title">
+            <span>视频</span>
+            <small>MP4</small>
+          </div>
+          <input id="videoInput" type="file" accept="video/mp4,video/*">
+          <small id="videoName">未选择</small>
+        </div>
+
+        <div class="settings">
+          <label>
+            输出文件名
+            <input id="outputName" type="text" placeholder="自动使用 封面名-实况图.jpg">
+          </label>
+          <label>
+            JPG 质量
+            <input id="qualityInput" type="number" min="1" max="100" value="95">
+          </label>
+          <label>
+            输出尺寸
+            <select id="sizeMode">
+              <option value="original">使用封面原尺寸</option>
+              <option value="custom">自定义宽高</option>
+            </select>
+          </label>
+          <label>
+            适配方式
+            <select id="fitMode">
+              <option value="crop">裁切填满</option>
+              <option value="contain">完整显示</option>
+              <option value="stretch">拉伸</option>
+            </select>
+          </label>
+          <label>
+            宽度
+            <input id="widthInput" type="number" min="1" placeholder="3072" disabled>
+          </label>
+          <label>
+            高度
+            <input id="heightInput" type="number" min="1" placeholder="4096" disabled>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="buildButton" type="button">生成实况照片</button>
+          <a id="downloadLink" class="download" href="#" download aria-disabled="true">下载 JPG</a>
+        </div>
+      </section>
+
+      <section class="preview">
+        <h2>预览与状态</h2>
+        <div class="preview-box" id="previewBox">
+          <div class="empty">选择封面后会显示预览</div>
+        </div>
+        <div class="status" id="statusBox">等待选择文件。</div>
+        <div class="meta" id="metaBox"></div>
+      </section>
+    </div>
+
+    <footer>
+      说明：页面生成的是 Android / 小米 / Google 风格的单文件实况照片 JPG，底层会写入相册识别需要的 MotionPhoto 元数据。Windows 照片查看器通常只显示静态图，建议用手机图库或 Google Photos 测试动态效果。
+    </footer>
+  </main>
+
+  <script>
+    const coverInput = document.getElementById("coverInput");
+    const videoInput = document.getElementById("videoInput");
+    const coverName = document.getElementById("coverName");
+    const videoName = document.getElementById("videoName");
+    const outputName = document.getElementById("outputName");
+    const qualityInput = document.getElementById("qualityInput");
+    const sizeMode = document.getElementById("sizeMode");
+    const fitMode = document.getElementById("fitMode");
+    const widthInput = document.getElementById("widthInput");
+    const heightInput = document.getElementById("heightInput");
+    const buildButton = document.getElementById("buildButton");
+    const downloadLink = document.getElementById("downloadLink");
+    const previewBox = document.getElementById("previewBox");
+    const statusBox = document.getElementById("statusBox");
+    const metaBox = document.getElementById("metaBox");
+
+    let coverImageUrl = "";
+    let resultUrl = "";
+
+    function setStatus(message, isError = false) {
+      statusBox.textContent = message;
+      statusBox.classList.toggle("error", isError);
+    }
+
+    function bytesText(bytes) {
+      if (!Number.isFinite(bytes)) return "-";
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+    }
+
+    function baseName(name) {
+      return name.replace(/\.[^.]+$/, "");
+    }
+
+    function defaultOutputName() {
+      const cover = coverInput.files && coverInput.files[0];
+      if (!cover) return "实况图.jpg";
+      return `${baseName(cover.name)}-实况图.jpg`;
+    }
+
+    function normalizeOutputName(name) {
+      const trimmed = name.trim();
+      if (!trimmed) return defaultOutputName();
+      return trimmed.toLowerCase().endsWith(".jpg") || trimmed.toLowerCase().endsWith(".jpeg")
+        ? trimmed
+        : `${trimmed}.jpg`;
+    }
+
+    function escapeXml(value) {
+      return value
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function jpegSegment(marker, payload) {
+      const length = payload.length + 2;
+      if (length > 65535) {
+        throw new Error("XMP 元数据太大。");
+      }
+      const segment = new Uint8Array(length + 2);
+      segment[0] = 0xff;
+      segment[1] = marker;
+      segment[2] = (length >> 8) & 0xff;
+      segment[3] = length & 0xff;
+      segment.set(payload, 4);
+      return segment;
+    }
+
+    function makeXmp(videoLength, presentationUs) {
+      const xmp = `<x:xmpmeta xmlns:x="adobe:ns:meta/">
+  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description rdf:about=""
+      xmlns:GCamera="http://ns.google.com/photos/1.0/camera/"
+      xmlns:Container="http://ns.google.com/photos/1.0/container/"
+      xmlns:Item="http://ns.google.com/photos/1.0/container/item/"
+      GCamera:MotionPhoto="1"
+      GCamera:MotionPhotoVersion="1"
+      GCamera:MotionPhotoPresentationTimestampUs="${escapeXml(String(presentationUs))}">
+      <Container:Directory>
+        <rdf:Seq>
+          <rdf:li rdf:parseType="Resource">
+            <Container:Item Item:Mime="image/jpeg" Item:Semantic="Primary"/>
+          </rdf:li>
+          <rdf:li rdf:parseType="Resource">
+            <Container:Item Item:Mime="video/mp4" Item:Semantic="MotionPhoto" Item:Length="${videoLength}" Item:Padding="0"/>
+          </rdf:li>
+        </rdf:Seq>
+      </Container:Directory>
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>`;
+      const header = "http://ns.adobe.com/xap/1.0/\u0000";
+      return new TextEncoder().encode(header + xmp);
+    }
+
+    function blobToImage(blob) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => resolve({ img, url });
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error("封面图读取失败。"));
+        };
+        img.src = url;
+      });
+    }
+
+    async function fileToImage(file) {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = url;
+      });
+      return { img, url };
+    }
+
+    function drawCover(img) {
+      let targetWidth = img.naturalWidth;
+      let targetHeight = img.naturalHeight;
+
+      if (sizeMode.value === "custom") {
+        targetWidth = Number(widthInput.value);
+        targetHeight = Number(heightInput.value);
+        if (!targetWidth || !targetHeight || targetWidth <= 0 || targetHeight <= 0) {
+          throw new Error("请填写有效的输出宽度和高度。");
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+      const sourceWidth = img.naturalWidth;
+      const sourceHeight = img.naturalHeight;
+
+      if (sizeMode.value === "original" || fitMode.value === "stretch") {
+        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+      } else if (fitMode.value === "contain") {
+        const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
+        const drawWidth = Math.round(sourceWidth * scale);
+        const drawHeight = Math.round(sourceHeight * scale);
+        const dx = Math.round((targetWidth - drawWidth) / 2);
+        const dy = Math.round((targetHeight - drawHeight) / 2);
+        ctx.drawImage(img, dx, dy, drawWidth, drawHeight);
+      } else {
+        const scale = Math.max(targetWidth / sourceWidth, targetHeight / sourceHeight);
+        const cropWidth = targetWidth / scale;
+        const cropHeight = targetHeight / scale;
+        const sx = (sourceWidth - cropWidth) / 2;
+        const sy = (sourceHeight - cropHeight) / 2;
+        ctx.drawImage(img, sx, sy, cropWidth, cropHeight, 0, 0, targetWidth, targetHeight);
+      }
+
+      return new Promise((resolve, reject) => {
+        const quality = Math.max(1, Math.min(100, Number(qualityInput.value) || 95)) / 100;
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            reject(new Error("封面 JPG 生成失败。"));
+            return;
+          }
+          resolve(blob);
+        }, "image/jpeg", quality);
+      });
+    }
+
+    async function buildLivePhoto() {
+      try {
+        const cover = coverInput.files && coverInput.files[0];
+        const video = videoInput.files && videoInput.files[0];
+        if (!cover) throw new Error("请选择封面图。");
+        if (!video) throw new Error("请选择 MP4 视频。");
+
+        setStatus("正在读取文件...");
+        buildButton.disabled = true;
+        downloadLink.setAttribute("aria-disabled", "true");
+
+        const { img, url } = await fileToImage(cover);
+        const coverBlob = await drawCover(img);
+        URL.revokeObjectURL(url);
+
+        const coverBytes = new Uint8Array(await coverBlob.arrayBuffer());
+        const videoBytes = new Uint8Array(await video.arrayBuffer());
+        const videoHead = new TextDecoder("latin1").decode(videoBytes.slice(0, 64));
+        if (!videoHead.includes("ftyp")) {
+          throw new Error("视频开头没有找到 MP4 ftyp 标记，请确认选择的是 MP4 文件。");
+        }
+        if (coverBytes[0] !== 0xff || coverBytes[1] !== 0xd8) {
+          throw new Error("封面没有成功转换成 JPEG。");
+        }
+
+        const xmpSegment = jpegSegment(0xe1, makeXmp(videoBytes.length, 0));
+        const totalLength = coverBytes.length + xmpSegment.length + videoBytes.length;
+        const outputBytes = new Uint8Array(totalLength);
+        let offset = 0;
+        outputBytes.set(coverBytes.slice(0, 2), offset);
+        offset += 2;
+        outputBytes.set(xmpSegment, offset);
+        offset += xmpSegment.length;
+        outputBytes.set(coverBytes.slice(2), offset);
+        offset += coverBytes.length - 2;
+        outputBytes.set(videoBytes, offset);
+
+        if (resultUrl) URL.revokeObjectURL(resultUrl);
+        const resultBlob = new Blob([outputBytes], { type: "image/jpeg" });
+        resultUrl = URL.createObjectURL(resultBlob);
+
+        const fileName = normalizeOutputName(outputName.value);
+        downloadLink.href = resultUrl;
+        downloadLink.download = fileName;
+        downloadLink.textContent = `下载 ${fileName}`;
+        downloadLink.setAttribute("aria-disabled", "false");
+
+        setStatus("生成完成，点击下载 JPG。");
+        metaBox.innerHTML = `
+          <div><strong>输出文件：</strong>${fileName}</div>
+          <div><strong>封面 JPG：</strong>${bytesText(coverBytes.length)}</div>
+          <div><strong>视频：</strong>${bytesText(videoBytes.length)}</div>
+          <div><strong>总大小：</strong>${bytesText(outputBytes.length)}</div>
+          <div><strong>视频起点：</strong>${outputBytes.length - videoBytes.length}</div>
+        `;
+      } catch (error) {
+        setStatus(error.message || String(error), true);
+      } finally {
+        buildButton.disabled = false;
+      }
+    }
+
+    function updatePreview() {
+      const cover = coverInput.files && coverInput.files[0];
+      coverName.textContent = cover ? `${cover.name} (${bytesText(cover.size)})` : "未选择";
+      if (!cover) {
+        previewBox.innerHTML = '<div class="empty">选择封面后会显示预览</div>';
+        return;
+      }
+      if (coverImageUrl) URL.revokeObjectURL(coverImageUrl);
+      coverImageUrl = URL.createObjectURL(cover);
+      previewBox.innerHTML = "";
+      const img = document.createElement("img");
+      img.alt = "封面预览";
+      img.src = coverImageUrl;
+      previewBox.appendChild(img);
+      if (!outputName.value.trim()) {
+        downloadLink.download = defaultOutputName();
+      }
+    }
+
+    function updateVideoName() {
+      const video = videoInput.files && videoInput.files[0];
+      videoName.textContent = video ? `${video.name} (${bytesText(video.size)})` : "未选择";
+    }
+
+    sizeMode.addEventListener("change", () => {
+      const custom = sizeMode.value === "custom";
+      widthInput.disabled = !custom;
+      heightInput.disabled = !custom;
+    });
+
+    coverInput.addEventListener("change", updatePreview);
+    videoInput.addEventListener("change", updateVideoName);
+    buildButton.addEventListener("click", buildLivePhoto);
+
+    for (const drop of document.querySelectorAll("[data-drop]")) {
+      drop.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        drop.classList.add("active");
+      });
+      drop.addEventListener("dragleave", () => drop.classList.remove("active"));
+      drop.addEventListener("drop", (event) => {
+        event.preventDefault();
+        drop.classList.remove("active");
+        const input = drop.querySelector('input[type="file"]');
+        if (input && event.dataTransfer.files.length) {
+          input.files = event.dataTransfer.files;
+          input.dispatchEvent(new Event("change"));
+        }
+      });
+    }
+  </script>
+</body>
+</html>
