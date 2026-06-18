@@ -1,6 +1,12 @@
 # Live Photo / 实况照片工具
+| ↓视频+图片转换 | 换封面的不会改变本来的源数据 |
+| --- | --- |
+| ![](https://img11.360buyimg.com/cxxjwimg/jfs/t1/448805/17/16641/2185302/00508e02F95e827d9/06d72d0500398965.webp) | ![](https://img11.360buyimg.com/cxxjwimg/jfs/t1/453189/12/14644/3168074/00508e02Fcdba5f18/06d72d0500c307e8.webp) |
+
 
 这里有两个脚本：`replace_live_photo_cover.py` 用来给已有单文件 Live Photo / 实况照片更换封面，`create_live_photo.py` 用来把一张封面图和一个 MP4 合成为新的单文件 Live Photo / 实况照片。
+
+> 一个小技巧：Ctrl+Shift+C 能直接复制文件的全路径
 
 下面先说明封面替换脚本。
 
@@ -23,7 +29,7 @@
 
 ## 文件位置
 
-脚本路径：
+假设。。。脚本路径：
 
 ```powershell
 D:\Desktop\sk\replace_live_photo_cover.py
@@ -43,7 +49,9 @@ python -m pip install pillow
 python -c "from PIL import Image; print('Pillow OK')"
 ```
 
-## 基础用法：生成新文件
+## 换封面的基础用法：生成新文件
+
+![](https://img11.360buyimg.com/cxxjwimg/jfs/t1/449235/12/17328/67940/6a3349e9Ff239b88e/06d758f2a76ef672.webp)
 
 推荐先用这种方式，不会覆盖原图。
 
@@ -196,9 +204,21 @@ python "D:\Desktop\sk\replace_live_photo_cover.py" `
   --replace
 ```
 
+
+
+---
+
+
+
+
+
 # 从封面图和视频合成 Live Photo / 实况照片
 
+![合成截图](https://zntx.cc/album/upload/956/2026/06/18/1070132_0832110.png)
+
 如果你手里有一张封面图和一个 MP4，也可以用下面这个脚本合成一个单文件 Live Photo / 实况照片 JPG。
+> 如果输出png是不会有动态效果的
+![](https://img11.360buyimg.com/cxxjwimg/jfs/t1/450953/20/15983/102140/6a33475eFe16e03eb/06d74c52869efcd4.webp)
 
 脚本路径：
 
